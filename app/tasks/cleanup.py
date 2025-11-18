@@ -4,7 +4,7 @@ from app.models.accounts import ActivationToken
 from datetime import datetime
 
 
-app = Celery("tasks", broker="redis://localhost:6379/0")  # broker = Redis
+app = Celery("tasks", broker="redis://localhost:6379/0")  # Redis как брокер
 
 @app.task
 def cleanup_expired_tokens():

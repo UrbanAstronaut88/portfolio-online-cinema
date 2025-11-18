@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Depends
 from sqlalchemy.orm import Session
 
+from app.routes.movies import router as movies_router
 from app.routes.auth import router as auth_router
 from app.db.session import get_db
 from app.models.accounts import User
@@ -8,6 +9,7 @@ from app.models.accounts import User
 app = FastAPI()
 
 app.include_router(auth_router)
+app.include_router(movies_router)
 
 
 @app.get("/")
