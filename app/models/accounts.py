@@ -51,6 +51,7 @@ class User(Base):
     refresh_tokens = relationship("RefreshToken", back_populates="user")
     cart = relationship("Cart", back_populates="user", uselist=False)
     orders = relationship("Order", back_populates="user")
+    payments = relationship("Payment", back_populates="user")
 
 
 class UserProfile(Base):
