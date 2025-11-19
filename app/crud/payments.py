@@ -2,8 +2,9 @@ from sqlalchemy.orm import Session
 from app.models.payments import Payment, PaymentItem, PaymentStatusEnum
 from app.models.orders import Order, OrderStatusEnum, OrderItem
 from app.schemas.payments import PaymentCreate
-
+from app.utils.email import send_email
 import stripe
+
 
 stripe.api_key = "your_stripe_test_key"  # позже заменить на реальный
 
@@ -39,15 +40,19 @@ def create_payment(db: Session, order_id: int):
     return db_payment, intent.client_secret  # для фронта
 
 
-def confirm_payment(db: Session, payment_id: str):
-    # webhook от Stripe
+async def confirm_payment(db: Session, payment_id: str):
     payment = db.query(Payment).filter(Payment.external_payment_id == payment_id).first()
     if payment:
         payment.status = PaymentStatusEnum.SUCCESSFUL
         order = payment.order
         order.status = OrderStatusEnum.PAID
         db.commit()
+
         # отправить email подтверждение
+        user_email = order.user.email  # предполагаем, что в Order.user есть email
+        body = f"Order: {order.id}, Total: {payment.amount} USD."
+        await send_email("Confirmation of payment", [user_email], body)
+
     return payment
 
 

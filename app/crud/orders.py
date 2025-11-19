@@ -3,14 +3,15 @@ from app.models.orders import Order, OrderItem, OrderStatusEnum
 from app.schemas.orders import OrderCreate
 from app.crud.cart import get_or_create_cart  # для переноса из корзины
 from app.models.cart import CartItem
+from app.crud.payments import create_payment
 
 
-def create_order_from_cart(db: Session, user_id: int):
+def create_order_from_cart(db: Session, user_id: int, initiate_payment: bool = True):
     cart = get_or_create_cart(db, user_id)
     if not cart.items:
         return None  # пустая корзина
 
-    total = sum(item.movie.price for item in cart.items)  # рассчитать сумму
+    total = sum(item.movie.price for item in cart.items)  # Рассчитать сумму
     db_order = Order(user_id=user_id, total_amount=total)
     db.add(db_order)
     db.commit()
@@ -21,10 +22,14 @@ def create_order_from_cart(db: Session, user_id: int):
         db.add(db_item)
     db.commit()
 
-    # Очистить корзину
+    # очистить корзину
     db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
     db.commit()
 
+    if initiate_payment:
+        payment, client_secret = create_payment(db, db_order.id)
+        # здесь можно вернуть client_secret для фронта, но в crud возвращаем order
+        # в реальности: обработать в router
     return db_order
 
 
