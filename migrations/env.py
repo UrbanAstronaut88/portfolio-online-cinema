@@ -8,6 +8,7 @@ from alembic import context
 from app.models.cart import *
 from app.models.accounts import *
 from app.models.movies import *
+from app.models.orders import *
 from app.db.base import Base
 
 
