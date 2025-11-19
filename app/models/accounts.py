@@ -49,6 +49,7 @@ class User(Base):
     activation_tokens = relationship("ActivationToken", back_populates="user")
     password_reset_tokens = relationship("PasswordResetToken", back_populates="user")
     refresh_tokens = relationship("RefreshToken", back_populates="user")
+    cart = relationship("Cart", back_populates="user", uselist=False)
 
 
 class UserProfile(Base):
