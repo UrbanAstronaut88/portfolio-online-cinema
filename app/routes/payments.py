@@ -5,6 +5,9 @@ from app.db.session import get_db
 from app.schemas.payments import Payment
 from app.crud.payments import create_payment, get_payments
 import stripe
+
+from app.utils.email import send_email
+
 # current_user
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -49,3 +52,10 @@ async def stripe_webhook(request: Request, background_tasks: BackgroundTasks, db
         background_tasks.add_task(create_payment, db, payment_id)
 
     return {"status": "success"}
+
+
+"""тест роутер"""
+@router.get("/test-email")
+async def test_email():
+    await send_email("Test Subject", ["urbanastronaut88@gmail.com"], "This is a test email.")
+    return {"message": "Email sent!"}

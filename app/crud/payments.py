@@ -1,12 +1,15 @@
+import os
 from sqlalchemy.orm import Session
 from app.models.payments import Payment, PaymentItem, PaymentStatusEnum
 from app.models.orders import Order, OrderStatusEnum, OrderItem
 from app.schemas.payments import PaymentCreate
 from app.utils.email import send_email
 import stripe
+from dotenv import load_dotenv
 
+load_dotenv()
 
-stripe.api_key = "your_stripe_test_key"  # позже заменить на реальный
+stripe.api_key = os.getenv("STRIPE_API_KEY")
 
 
 def create_payment(db: Session, order_id: int):

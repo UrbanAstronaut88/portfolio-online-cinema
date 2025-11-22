@@ -1,13 +1,19 @@
+import os
 from fastapi_mail import FastMail, MessageSchema, ConnectionConfig
 from pydantic_settings import BaseSettings
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
 
 class EmailSettings(BaseSettings):
-    MAIL_USERNAME: str = "your_email@gmail.com"
-    MAIL_PASSWORD: str = "your_password"
-    MAIL_FROM: str = "your_email@gmail.com"
-    MAIL_PORT: int = 587
-    MAIL_SERVER: str = "smtp.gmail.com"
-    MAIL_FROM_NAME: str = "Online Cinema"
+    MAIL_USERNAME: str = os.getenv("MAIL_USERNAME")
+    MAIL_PASSWORD: str = os.getenv("MAIL_PASSWORD")
+    MAIL_FROM: str = os.getenv("MAIL_FROM", "urbanastronaut88@gmail.com")
+    MAIL_PORT: int = int(os.getenv("MAIL_PORT", 587))
+    MAIL_SERVER: str = os.getenv("MAIL_SERVER", "smtp.gmail.com")
+    MAIL_FROM_NAME: str = os.getenv("MAIL_FROM_NAME", "Online Cinema")
 
 conf = ConnectionConfig(
     MAIL_USERNAME=EmailSettings().MAIL_USERNAME,
@@ -18,7 +24,8 @@ conf = ConnectionConfig(
     MAIL_FROM_NAME=EmailSettings().MAIL_FROM_NAME,
     MAIL_STARTTLS=True,
     MAIL_SSL_TLS=False,
-    USE_CREDENTIALS=True
+    USE_CREDENTIALS=True,
+    VALIDATE_CERTS=True
 )
 
 async def send_email(subject: str, recipients: list, body: str):
@@ -26,7 +33,7 @@ async def send_email(subject: str, recipients: list, body: str):
         subject=subject,
         recipients=recipients,
         body=body,
-        subtype="html"
+        subtype="html"  # Для HTML, если нужно форматирование
     )
     fm = FastMail(conf)
     await fm.send_message(message)
