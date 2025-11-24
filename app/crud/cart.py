@@ -1,37 +1,53 @@
-from sqlalchemy.orm import Session
+# crud/cart.py (обновлённый для async, добавлен get_cart_with_items с joinedload)
+from sqlalchemy import delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy.orm import joinedload
 from app.models.cart import Cart, CartItem
 from app.schemas.cart import CartItemCreate
 from app.models.movies import Movie
 
-def get_or_create_cart(db: Session, user_id: int):
-    cart = db.query(Cart).filter(Cart.user_id == user_id).first()
+async def get_or_create_cart(db: AsyncSession, user_id: int):
+    result = await db.execute(select(Cart).where(Cart.user_id == user_id))
+    cart = result.scalars().first()
     if not cart:
         cart = Cart(user_id=user_id)
         db.add(cart)
-        db.commit()
-        db.refresh(cart)
+        await db.commit()
+        await db.refresh(cart)
     return cart
 
-def add_item_to_cart(db: Session, cart_id: int, item: CartItemCreate):
-    # проверить, не куплен ли фильм (позже с orders)
-    existing = db.query(CartItem).filter(CartItem.cart_id == cart_id, CartItem.movie_id == item.movie_id).first()
+async def add_item_to_cart(db: AsyncSession, cart_id: int, item: CartItemCreate):
+    # Проверить, не куплен ли фильм (позже с orders: добавить логику проверки purchased)
+    result = await db.execute(select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == item.movie_id))
+    existing = result.scalars().first()
     if existing:
-        return None  # уже в корзине
+        return None  # Уже в корзине
     db_item = CartItem(cart_id=cart_id, movie_id=item.movie_id)
     db.add(db_item)
-    db.commit()
-    db.refresh(db_item)
+    await db.commit()
+    await db.refresh(db_item)
     return db_item
 
-def remove_item_from_cart(db: Session, item_id: int):
-    item = db.query(CartItem).filter(CartItem.id == item_id).first()
+async def remove_item_from_cart(db: AsyncSession, item_id: int):
+    result = await db.execute(select(CartItem).where(CartItem.id == item_id))
+    item = result.scalars().first()
     if item:
-        db.delete(item)
-        db.commit()
+        await db.delete(item)
+        await db.commit()
     return item
 
-def clear_cart(db: Session, cart_id: int):
-    db.query(CartItem).filter(CartItem.cart_id == cart_id).delete()
-    db.commit()
+async def clear_cart(db: AsyncSession, cart_id: int):
+    await db.execute(delete(CartItem).where(CartItem.cart_id == cart_id))
+    await db.commit()
 
-# добавить get_cart с items (joinedload для movie details)
+async def get_cart_with_items(db: AsyncSession, cart_id: int):
+    result = await db.execute(
+        select(Cart)
+        .options(joinedload(Cart.items).joinedload(CartItem.movie))
+        .where(Cart.id == cart_id)
+    )
+    cart = result.scalars().first()
+    if not cart:
+        raise ValueError("Cart not found")
+    return cart
