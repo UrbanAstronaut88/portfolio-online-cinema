@@ -41,13 +41,12 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSessi
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account not activated")
     access_token = create_access_token({"sub": user.email})
-    refresh_token = create_refresh_token(user.id, db)  # Если create_refresh_token синхронный, ок; иначе await
+    refresh_token = await create_refresh_token(user.id, db)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
 
 @router.post("/logout")
 async def logout_user(refresh_token: str, db: AsyncSession = Depends(get_db)):
-    # Предполагаем, что refresh_token передаётся в теле или headers; здесь в теле как str
     success = await logout(db, refresh_token)
     if not success:
         raise HTTPException(status_code=400, detail="Invalid refresh token")

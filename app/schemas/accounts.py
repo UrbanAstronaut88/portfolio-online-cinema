@@ -17,7 +17,7 @@ class GenderEnum(str, Enum):
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(min_length=8)  # Базовая проверка длины
+    password: str = Field(min_length=8)
 
     @validator("password")
     def validate_password(cls, v):
