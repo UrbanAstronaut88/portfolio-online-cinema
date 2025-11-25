@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.db.session import get_db  # Предполагаем, что get_db адаптирован для async (см. обновление db/session.py)
+from app.db.session import get_db
 from app.models.accounts import User
 from app.schemas.accounts import UserCreate, UserOut, Token
 from app.crud.accounts import create_user, create_activation_token, get_user_by_email, verify_password, activate_user, logout, request_password_reset, reset_password, change_password
-from app.utils.auth import create_access_token, create_refresh_token, get_current_user  # Добавлен импорт get_current_user
+from app.utils.auth import create_access_token, create_refresh_token, get_current_user
 from app.utils.email import send_email
 
 
@@ -16,9 +16,13 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     db_user = await create_user(db, user)
     token = await create_activation_token(db, db_user.id)
-    # Отправка email
-    await send_email("Activate your account", [user.email], f"Click to activate: http://localhost:8000/auth/activate/{token.token}")
-    return db_user
+    # sending email
+    await send_email(
+        "Activate your account",
+        [user.email],
+        f"Click to activate: http://localhost:8000/auth/activate/{token.token}"
+    )
+    return UserOut.model_validate(db_user)
 
 
 @router.get("/activate/{token}")

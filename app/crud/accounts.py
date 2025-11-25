@@ -1,8 +1,8 @@
 import re
 
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import joinedload
 from app.models.accounts import User, UserGroup, ActivationToken, PasswordResetToken, RefreshToken
 from app.schemas.accounts import UserCreate
 from passlib.context import CryptContext
@@ -20,7 +20,6 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 def check_password_complexity(password: str) -> bool:
-    # пример проверки: минимум 8 символов, буквы верх/ниж регистр, цифра, спецсимвол
     if len(password) < 8:
         return False
     if not re.search(r"[A-Z]", password):
@@ -35,12 +34,12 @@ def check_password_complexity(password: str) -> bool:
 
 
 async def get_user_by_email(db: AsyncSession, email: str) -> User:
-    result = await db.execute(select(User).where(User.email == email))
+    result = await db.execute(select(User).options(joinedload(User.group)).where(User.email == email))
     return result.scalars().first()
 
 
 async def get_user_by_id(db: AsyncSession, user_id: int) -> User:
-    result = await db.execute(select(User).where(User.id == user_id))
+    result = await db.execute(select(User).options(joinedload(User.group)).where(User.id == user_id))
     return result.scalars().first()
 
 
@@ -51,14 +50,25 @@ async def create_user(db: AsyncSession, user: UserCreate):
     if existing_user:
         raise ValueError("Email already registered")
     hashed_password = get_password_hash(user.password)
-    db_user = User(email=user.email, hashed_password=hashed_password, group_id=1)  # group_id=1 for USER
+    db_user = User(email=user.email, hashed_password=hashed_password, group_id=1)
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
-    return db_user
+
+    result = await db.execute(
+        select(User)
+        .options(joinedload(User.group))
+        .where(User.id == db_user.id)
+    )
+    user_with_group = result.scalars().first()
+    return user_with_group
 
 
 async def create_activation_token(db: AsyncSession, user_id: int):
+    # Удаляем старый токен для этого юзера, если есть (чтобы избежать UNIQUE error)
+    await db.execute(delete(ActivationToken).where(ActivationToken.user_id == user_id))
+    await db.commit()
+
     token = str(uuid.uuid4())
     expires_at = datetime.utcnow() + timedelta(hours=24)
     db_token = ActivationToken(user_id=user_id, token=token, expires_at=expires_at)

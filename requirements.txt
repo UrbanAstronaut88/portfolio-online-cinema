@@ -1,10 +1,11 @@
 aiosmtplib==4.0.2
+aiosqlite==0.21.0
 alembic==1.17.2
 amqp==5.3.1
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.11.0
-bcrypt==5.0.0
+bcrypt==4.0.1
 billiard==4.2.3
 black==25.11.0
 blinker==1.9.0

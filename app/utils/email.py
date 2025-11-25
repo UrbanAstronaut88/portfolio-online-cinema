@@ -33,7 +33,7 @@ async def send_email(subject: str, recipients: list, body: str):
         subject=subject,
         recipients=recipients,
         body=body,
-        subtype="html"  # Для HTML, если нужно форматирование
+        subtype="html"  # for HTML
     )
     fm = FastMail(conf)
     await fm.send_message(message)
