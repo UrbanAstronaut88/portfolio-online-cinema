@@ -65,7 +65,6 @@ async def create_user(db: AsyncSession, user: UserCreate):
 
 
 async def create_activation_token(db: AsyncSession, user_id: int):
-    # Удаляем старый токен для этого юзера, если есть (чтобы избежать UNIQUE error)
     await db.execute(delete(ActivationToken).where(ActivationToken.user_id == user_id))
     await db.commit()
 
@@ -86,7 +85,7 @@ async def activate_user(db: AsyncSession, token: str) -> bool:
     user = await get_user_by_id(db, activation_token.user_id)
     if user:
         user.is_active = True
-        await db.delete(activation_token)  # удаляем использованный токен
+        await db.delete(activation_token)
         await db.commit()
         return True
     return False
@@ -106,7 +105,7 @@ async def change_password(db: AsyncSession, user_id: int, old_password: str, new
 async def request_password_reset(db: AsyncSession, email: str):
     user = await get_user_by_email(db, email)
     if not user or not user.is_active:
-        return None  # не раскрываем существование email
+        return None
     token = str(uuid.uuid4())
     expires_at = datetime.utcnow() + timedelta(hours=24)
     db_token = PasswordResetToken(user_id=user.id, token=token, expires_at=expires_at)

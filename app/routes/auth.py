@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timedelta
+from fastapi import APIRouter, Depends, HTTPException, status, Body
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
-from app.models.accounts import User
-from app.schemas.accounts import UserCreate, UserOut, Token
+from app.models.accounts import User, RefreshToken
+from app.schemas.accounts import UserCreate, UserOut, UserLoginResponseSchema, PasswordChange
 from app.crud.accounts import create_user, create_activation_token, get_user_by_email, verify_password, activate_user, logout, request_password_reset, reset_password, change_password
 from app.utils.auth import create_access_token, create_refresh_token, get_current_user
 from app.utils.email import send_email
@@ -33,16 +36,44 @@ async def activate(token: str, db: AsyncSession = Depends(get_db)):
     return {"message": "Account activated"}
 
 
-@router.post("/login", response_model=Token)
-async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
-    user = await get_user_by_email(db, form_data.username)
-    if not user or not verify_password(form_data.password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
+@router.post("/login", response_model=UserLoginResponseSchema)
+async def login_user(
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: AsyncSession = Depends(get_db),
+) -> UserLoginResponseSchema:
+
+    email = form_data.username
+
+    stmt = select(User).where(User.email == email)
+    result = await db.execute(stmt)
+    user = result.scalars().first()
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User with this email not found"
+        )
+
+    if not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect password"
+        )
+
     if not user.is_active:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account not activated")
-    access_token = await create_access_token({"sub": user.email})
-    refresh_token = await create_refresh_token(user.id, db)
-    return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account not activated"
+        )
+
+    refresh = await create_refresh_token(user.id, db)
+    access = await create_access_token({"sub": user.email})
+
+    return UserLoginResponseSchema(
+        access_token=access,
+        refresh_token=refresh,
+        token_type="bearer"
+    )
 
 
 @router.post("/logout")
@@ -54,9 +85,13 @@ async def logout_user(refresh_token: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/password/change")
-async def change_user_password(old_password: str, new_password: str, current_user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+async def change_user_password(
+    data: PasswordChange = Body(...),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
     try:
-        await change_password(db, current_user.id, old_password, new_password)
+        await change_password(db, current_user.id, data.old_password, data.new_password)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"message": "Password changed successfully"}
@@ -67,7 +102,7 @@ async def request_reset(email: str, db: AsyncSession = Depends(get_db)):
     token = await request_password_reset(db, email)
     if token:
         await send_email("Password Reset", [email], f"Click to reset: http://localhost:8000/auth/password/reset/{token.token}")
-    return {"message": "If the email is registered, a reset link has been sent"}  # Без раскрытия существования email
+    return {"message": "If the email is registered, a reset link has been sent"}
 
 
 @router.post("/password/reset/{token}")

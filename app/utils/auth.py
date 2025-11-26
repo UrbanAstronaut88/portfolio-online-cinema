@@ -10,6 +10,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.crud.accounts import get_user_by_email
 from app.db.session import get_db
 from app.models.accounts import User, RefreshToken
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 
 SECRET_KEY = os.getenv("SECRET_KEY")
@@ -17,7 +21,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
 async def verify_token(token: str) -> dict:
