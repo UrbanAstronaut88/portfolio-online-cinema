@@ -34,13 +34,13 @@ async def activate(token: str, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login_user(form_data: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user = await get_user_by_email(db, form_data.username)
     if not user or not verify_password(form_data.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect email or password")
     if not user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account not activated")
-    access_token = create_access_token({"sub": user.email})
+    access_token = await create_access_token({"sub": user.email})
     refresh_token = await create_refresh_token(user.id, db)
     return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer"}
 
