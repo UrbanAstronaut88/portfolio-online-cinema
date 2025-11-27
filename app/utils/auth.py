@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +22,8 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+bearer_scheme = HTTPBearer()
 
 
 async def verify_token(token: str) -> dict:
@@ -35,22 +37,16 @@ async def verify_token(token: str) -> dict:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Invalid authentication credentials: {str(e)}")
 
 
-async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession = Depends(get_db)) -> User:
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    try:
-        payload = await verify_token(token)
-        email: str = payload.get("email")
-        if email is None:
-            raise credentials_exception
-    except JWTError:
-        raise credentials_exception
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    db: AsyncSession = Depends(get_db)
+) -> User:
+    token = credentials.credentials
+    payload = await verify_token(token)
+    email = payload["email"]
     user = await get_user_by_email(db, email=email)
-    if user is None:
-        raise credentials_exception
+    if not user:
+        raise HTTPException(status_code=401, detail="User not found")
     return user
 
 
