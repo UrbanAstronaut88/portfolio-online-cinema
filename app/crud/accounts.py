@@ -1,5 +1,4 @@
 import re
-
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -125,7 +124,7 @@ async def reset_password(db: AsyncSession, token: str, new_password: str):
         if not check_password_complexity(new_password):
             raise ValueError("New password does not meet complexity requirements")
         user.hashed_password = get_password_hash(new_password)
-        await db.delete(reset_token)  # удаляем использованный токен
+        await db.delete(reset_token)
         await db.commit()
         return True
     return False
@@ -139,3 +138,23 @@ async def logout(db: AsyncSession, refresh_token: str):
         await db.commit()
         return True
     return False
+
+
+async def set_user_role(db: AsyncSession, user_id: int, new_role: str):
+    user = await get_user_by_id(db, user_id)
+    if not user:
+        raise ValueError("User not found")
+
+    result = await db.execute(
+        select(UserGroup).where(UserGroup.name == new_role)
+    )
+    group = result.scalars().first()
+
+    if not group:
+        raise ValueError("Invalid role")
+
+    user.group_id = group.id
+    await db.commit()
+    await db.refresh(user)
+
+    return user

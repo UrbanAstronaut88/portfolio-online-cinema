@@ -13,7 +13,8 @@ from app.models.accounts import User
 
 app = FastAPI(
     title="Online Cinema API",
-    description="Portfolio project: Online cinema backend with auth, cart, orders, payments",
+    description="Portfolio project: Online cinema backend with auth, cart, orders, payments\n"
+    "\nauthor: UrbanAstronaut88",
     version="1.0.0",
 )
 

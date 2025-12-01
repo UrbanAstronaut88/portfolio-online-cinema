@@ -121,7 +121,7 @@ async def get_movies(db: AsyncSession, skip: int = 0, limit: int = 20,
 
     query = query.offset(skip).limit(limit)
     result = await db.execute(query)
-    return result.scalars().all()
+    return result.unique().scalars().all()
 
 
 # -----------------------------

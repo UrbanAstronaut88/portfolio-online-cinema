@@ -15,6 +15,11 @@ class GenderEnum(str, Enum):
     WOMAN = "WOMAN"
 
 
+class ChangeUserRole(BaseModel):
+    user_id: int
+    new_role: UserGroupEnum
+
+
 class UserCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
@@ -139,3 +144,6 @@ class RefreshToken(RefreshTokenCreate):
 
     class Config:
         from_attributes = True
+
+
+

@@ -6,10 +6,22 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.models.accounts import User, RefreshToken
-from app.schemas.accounts import UserCreate, UserOut, UserLoginResponseSchema, PasswordChange
-from app.crud.accounts import create_user, create_activation_token, get_user_by_email, verify_password, activate_user, logout, request_password_reset, reset_password, change_password
+from app.schemas.accounts import UserCreate, UserOut, UserLoginResponseSchema, PasswordChange, ChangeUserRole
+from app.crud.accounts import (
+    create_user,
+    create_activation_token,
+    get_user_by_email,
+    verify_password,
+    activate_user,
+    logout,
+    request_password_reset,
+    reset_password,
+    change_password,
+    set_user_role
+)
 from app.utils.auth import create_access_token, create_refresh_token, get_current_user
 from app.utils.email import send_email
+
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -111,3 +123,25 @@ async def reset_user_password(token: str, new_password: str, db: AsyncSession = 
     if not success:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
     return {"message": "Password reset successfully"}
+
+
+@router.post("/set-role")
+async def change_user_role(
+    data: ChangeUserRole,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    # verification: only the admin can change the role
+    if current_user.group.name != "ADMIN":
+        raise HTTPException(403, "You are not allowed to change roles")
+
+    try:
+        updated = await set_user_role(db, data.user_id, data.new_role.value)
+        return {
+            "message": f"Role changed successfully to {data.new_role}",
+            "user_id": updated.id,
+            "new_role": updated.group.name,
+        }
+
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
