@@ -2,6 +2,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 
 
+# ========== GENRE ==========
 class GenreBase(BaseModel):
     name: str
 
@@ -13,6 +14,7 @@ class Genre(GenreBase):
         from_attributes = True
 
 
+# ========== STAR ==========
 class StarBase(BaseModel):
     name: str
 
@@ -24,6 +26,7 @@ class Star(StarBase):
         from_attributes = True
 
 
+# ========== DIRECTOR ==========
 class DirectorBase(BaseModel):
     name: str
 
@@ -35,6 +38,7 @@ class Director(DirectorBase):
         from_attributes = True
 
 
+# ========== CERTIFICATION ==========
 class CertificationBase(BaseModel):
     name: str
 
@@ -46,6 +50,7 @@ class Certification(CertificationBase):
         from_attributes = True
 
 
+# ========== MOVIE CREATE (INPUT) ==========
 class MovieBase(BaseModel):
     name: str
     year: int
@@ -57,20 +62,36 @@ class MovieBase(BaseModel):
     description: str
     price: float
     certification_id: int
-    genres: List[int] = []  # IDs genres
-    directors: List[int] = []  # IDs directors
-    stars: List[int] = []  # IDs stars
+
+    # Input: IDs ONLY
+    genres: List[int] = []
+    directors: List[int] = []
+    stars: List[int] = []
 
 
 class MovieCreate(MovieBase):
     pass
 
 
-class Movie(MovieBase):
+# ========== MOVIE RESPONSE (OUTPUT) ==========
+class Movie(BaseModel):
     id: int
     uuid: str
+    name: str
+    year: int
+    time: int
+    imdb: float
+    votes: int
+    meta_score: Optional[float]
+    gross: Optional[float]
+    description: str
+    price: float
+
+    # Output: nested objects
+    certification: Certification
+    genres: List[Genre]
+    directors: List[Director]
+    stars: List[Star]
 
     class Config:
         from_attributes = True
-
-
