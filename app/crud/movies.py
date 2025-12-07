@@ -16,12 +16,7 @@ from app.models.orders import OrderItem
 from app.schemas.movies import MovieCreate
 
 
-# -----------------------------
-# CREATE MOVIE
-# -----------------------------
 async def create_movie(db: AsyncSession, movie: MovieCreate):
-
-    # -------- CREATE MOVIE ITSELF ----------
     db_movie = MovieModel(
         name=movie.name,
         year=movie.year,
@@ -78,7 +73,6 @@ async def create_movie(db: AsyncSession, movie: MovieCreate):
                 [{"movie_id": movie_id, "star_id": s} for s in valid_stars]
             )
 
-    # -------- FINAL COMMIT ----------
     await db.commit()
 
     # Reload movie with relationships for Swagger response
@@ -95,9 +89,6 @@ async def create_movie(db: AsyncSession, movie: MovieCreate):
     return result.scalars().first()
 
 
-# -----------------------------
-# GET MOVIES LIST
-# -----------------------------
 async def get_movies(db: AsyncSession, skip: int = 0, limit: int = 20,
                      search: str = None, year: int = None,
                      sort_by: str = "name", order: str = "asc"):
@@ -124,9 +115,6 @@ async def get_movies(db: AsyncSession, skip: int = 0, limit: int = 20,
     return result.unique().scalars().all()
 
 
-# -----------------------------
-# GET ONE MOVIE
-# -----------------------------
 async def get_movie_by_id(db: AsyncSession, movie_id: int):
     query = select(MovieModel).options(
         joinedload(MovieModel.genres),
@@ -139,9 +127,6 @@ async def get_movie_by_id(db: AsyncSession, movie_id: int):
     return result.scalars().first()
 
 
-# -----------------------------
-# UPDATE MOVIE
-# -----------------------------
 async def update_movie(db: AsyncSession, movie_id: int, movie_update: MovieCreate):
     movie = await get_movie_by_id(db, movie_id)
     if not movie:
@@ -180,9 +165,6 @@ async def update_movie(db: AsyncSession, movie_id: int, movie_update: MovieCreat
     return movie
 
 
-# -----------------------------
-# DELETE MOVIE
-# -----------------------------
 async def delete_movie(db: AsyncSession, movie_id: int):
     # You cannot delete a purchased film
     purchased_result = await db.execute(
@@ -207,9 +189,6 @@ async def delete_movie(db: AsyncSession, movie_id: int):
     return False
 
 
-# -----------------------------
-# GENRES STATISTICS
-# -----------------------------
 async def get_genres_with_count(db: AsyncSession):
     query = (
         select(Genre, func.count(movie_genres.c.movie_id).label("movie_count"))

@@ -1,4 +1,3 @@
-# crud/cart.py (обновлённый для async, добавлен get_cart_with_items с joinedload)
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -18,11 +17,10 @@ async def get_or_create_cart(db: AsyncSession, user_id: int):
     return cart
 
 async def add_item_to_cart(db: AsyncSession, cart_id: int, item: CartItemCreate):
-    # Проверить, не куплен ли фильм (позже с orders: добавить логику проверки purchased)
     result = await db.execute(select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == item.movie_id))
     existing = result.scalars().first()
     if existing:
-        return None  # Уже в корзине
+        return None
     db_item = CartItem(cart_id=cart_id, movie_id=item.movie_id)
     db.add(db_item)
     await db.commit()
