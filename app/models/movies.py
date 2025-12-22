@@ -4,7 +4,6 @@ from app.db.base import Base
 import uuid
 
 
-# Associative tables (many-to-many)
 movie_genres = Table(
     "movie_genres",
     Base.metadata,
