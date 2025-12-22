@@ -1,8 +1,13 @@
-from pydantic import BaseModel, EmailStr, Field, validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, ConfigDict
 from datetime import datetime
 from enum import Enum
 from typing import Optional
 import re
+
+
+# ============================================================
+# ENUMS
+# ============================================================
 
 class UserGroupEnum(str, Enum):
     USER = "USER"
@@ -15,28 +20,41 @@ class GenderEnum(str, Enum):
     WOMAN = "WOMAN"
 
 
-class ChangeUserRole(BaseModel):
-    user_id: int
-    new_role: UserGroupEnum
+# ============================================================
+# PASSWORD VALIDATION (ONE PLACE)
+# ============================================================
+
+def validate_password_strength(password: str) -> str:
+    if len(password) < 8:
+        raise ValueError("Password must be at least 8 characters")
+
+    patterns = [
+        (r"[A-Z]", "Password must contain at least one uppercase letter"),
+        (r"[a-z]", "Password must contain at least one lowercase letter"),
+        (r"\d", "Password must contain at least one digit"),
+        (r"[!@#$%^&*(),.?\":{}|<>]", "Password must contain at least one special character"),
+    ]
+    for pattern, msg in patterns:
+        if not re.search(pattern, password):
+            raise ValueError(msg)
+
+    return password
 
 
-class UserCreate(BaseModel):
+# ============================================================
+# BASE SCHEMAS
+# ============================================================
+
+class UserBase(BaseModel):
     email: EmailStr
+
+
+class UserCreate(UserBase):
     password: str = Field(min_length=8)
 
-    @validator("password")
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("Password must contain at least one special character")
-        return v
+    @field_validator("password")
+    def strong_password(cls, v):
+        return validate_password_strength(v)
 
 
 class UserUpdate(BaseModel):
@@ -48,47 +66,34 @@ class UserUpdate(BaseModel):
     info: Optional[str] = None
 
 
+# ============================================================
+# OUTPUT SCHEMAS (USED IN RESPONSES)
+# ============================================================
+
 class UserOut(BaseModel):
     id: int
     email: EmailStr
     is_active: bool
     group: UserGroupEnum
 
-    @classmethod
-    def model_validate(cls, obj):
-        try:
-            group_name = obj.group.name if getattr(obj, "group", None) is not None else None
-        except Exception:
-            group_name = None
+    model_config = ConfigDict(from_attributes=True)
 
-        if group_name is None:
-            group_name = UserGroupEnum.USER.value
+    # SQLAlchemy Enum → str
+    @field_validator("group", mode="before")
+    def convert_group(cls, value):
+        if hasattr(value, "name"):
+            return value.name
+        return value
 
-        return cls(
-            id=obj.id,
-            email=obj.email,
-            is_active=obj.is_active,
-            group=group_name,
-        )
 
+# ============================================================
+# AUTH SCHEMAS
+# ============================================================
 
 class UserLoginResponseSchema(BaseModel):
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
-
-
-class ActivationTokenCreate(BaseModel):
-    token: str
-    expires_at: datetime
-
-
-class ActivationToken(ActivationTokenCreate):
-    id: int
-    user_id: int
-
-    class Config:
-        from_attributes = True
 
 
 class PasswordResetRequest(BaseModel):
@@ -99,51 +104,52 @@ class PasswordReset(BaseModel):
     token: str
     new_password: str = Field(min_length=8)
 
-    @validator("new_password")
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("Password must contain at least one special character")
-        return v
+    @field_validator("new_password")
+    def strong_password(cls, v):
+        return validate_password_strength(v)
 
 
 class PasswordChange(BaseModel):
     old_password: str
     new_password: str = Field(min_length=8)
 
-    @validator("new_password")
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters")
-        if not re.search(r"[A-Z]", v):
-            raise ValueError("Password must contain at least one uppercase letter")
-        if not re.search(r"[a-z]", v):
-            raise ValueError("Password must contain at least one lowercase letter")
-        if not re.search(r"\d", v):
-            raise ValueError("Password must contain at least one digit")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
-            raise ValueError("Password must contain at least one special character")
-        return v
+    @field_validator("new_password")
+    def strong_password(cls, v):
+        return validate_password_strength(v)
 
 
-class RefreshTokenCreate(BaseModel):
+# ============================================================
+# ADMIN MODELS
+# ============================================================
+
+class ChangeUserRole(BaseModel):
+    user_id: int
+    new_role: UserGroupEnum
+
+
+# ============================================================
+# TOKENS
+# ============================================================
+
+class ActivationTokenBase(BaseModel):
     token: str
     expires_at: datetime
 
 
-class RefreshToken(RefreshTokenCreate):
+class ActivationToken(ActivationTokenBase):
     id: int
     user_id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
+class RefreshTokenBase(BaseModel):
+    token: str
+    expires_at: datetime
 
+
+class RefreshToken(RefreshTokenBase):
+    id: int
+    user_id: int
+
+    model_config = ConfigDict(from_attributes=True)
