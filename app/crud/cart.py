@@ -4,7 +4,7 @@ from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
 from app.models.cart import Cart, CartItem
 from app.schemas.cart import CartItemCreate
-from app.models.movies import Movie
+
 
 async def get_or_create_cart(db: AsyncSession, user_id: int):
     result = await db.execute(select(Cart).where(Cart.user_id == user_id))
@@ -15,6 +15,7 @@ async def get_or_create_cart(db: AsyncSession, user_id: int):
         await db.commit()
         await db.refresh(cart)
     return cart
+
 
 async def add_item_to_cart(db: AsyncSession, cart_id: int, item: CartItemCreate):
     result = await db.execute(select(CartItem).where(CartItem.cart_id == cart_id, CartItem.movie_id == item.movie_id))
@@ -27,6 +28,7 @@ async def add_item_to_cart(db: AsyncSession, cart_id: int, item: CartItemCreate)
     await db.refresh(db_item)
     return db_item
 
+
 async def remove_item_from_cart(db: AsyncSession, item_id: int):
     result = await db.execute(select(CartItem).where(CartItem.id == item_id))
     item = result.scalars().first()
@@ -35,9 +37,11 @@ async def remove_item_from_cart(db: AsyncSession, item_id: int):
         await db.commit()
     return item
 
+
 async def clear_cart(db: AsyncSession, cart_id: int):
     await db.execute(delete(CartItem).where(CartItem.cart_id == cart_id))
     await db.commit()
+
 
 async def get_cart_with_items(db: AsyncSession, cart_id: int):
     result = await db.execute(
