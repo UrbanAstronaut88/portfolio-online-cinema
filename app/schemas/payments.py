@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
@@ -18,8 +18,7 @@ class PaymentItemBase(BaseModel):
 class PaymentItem(PaymentItemBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class PaymentBase(BaseModel):
@@ -39,5 +38,4 @@ class Payment(PaymentBase):
     order_id: int
     items: List[PaymentItem] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
