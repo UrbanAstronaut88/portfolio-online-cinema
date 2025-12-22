@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 
@@ -10,8 +10,7 @@ class GenreBase(BaseModel):
 class Genre(GenreBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ========== STAR ==========
@@ -22,8 +21,7 @@ class StarBase(BaseModel):
 class Star(StarBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ========== DIRECTOR ==========
@@ -34,20 +32,18 @@ class DirectorBase(BaseModel):
 class Director(DirectorBase):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ========== CERTIFICATION ==========
-class CertificationBase(BaseModel):
+class CertificationCreate(BaseModel):
     name: str
 
 
-class Certification(CertificationBase):
+class Certification(CertificationCreate):
     id: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ========== MOVIE CREATE (INPUT) ==========
@@ -93,5 +89,4 @@ class Movie(BaseModel):
     directors: List[Director]
     stars: List[Star]
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
