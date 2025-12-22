@@ -10,61 +10,74 @@ from app.crud.movies import (
     get_movie_by_id,
     update_movie,
     delete_movie,
-    get_genres_with_count
+    get_genres_with_count,
 )
 from app.utils.auth import get_current_user
 from app.models.accounts import User
 
-
 router = APIRouter(prefix="/movies", tags=["movies"])
 
 
-# ---------------------------
-# CREATE MOVIE
-# ---------------------------
-@router.post("/", response_model=Movie)
+@router.get(
+    "/genres",
+    response_model=List[dict],
+    summary="List genres with movie count",
+    description="Returns all genres with number of movies in each genre.",
+)
+async def get_genres(db: AsyncSession = Depends(get_db)):
+    data = await get_genres_with_count(db)
+    return [{"id": g.id, "name": g.name, "movie_count": count} for g, count in data]
+
+
+@router.post(
+    "/",
+    response_model=Movie,
+    summary="Create movie",
+    description="ADMIN and MODERATOR only. Creates a new movie.",
+)
 async def create(
     movie: MovieCreate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
-    # Roles check
     if current_user.group is None or current_user.group.name not in ["MODERATOR", "ADMIN"]:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(403, "Not authorized")
 
-    created_movie = await create_movie(db, movie)
-    return created_movie
+    return await create_movie(db, movie)
 
 
-# ---------------------------
-# LIST MOVIES (filters, sorting)
-# ---------------------------
-@router.get("/", response_model=List[Movie])
+@router.get(
+    "/",
+    response_model=List[Movie],
+    summary="List movies",
+    description="Returns movies with filtering, search, sorting and pagination.",
+)
 async def read_movies(
     skip: int = 0,
     limit: int = Query(10, le=100),
     search: str | None = None,
     year: int | None = None,
-    sort_by: str = Query("name", description="Sort by field: name, price, year, etc."),
-    order: str = Query("asc", description="Order: asc or desc"),
-    db: AsyncSession = Depends(get_db)
+    sort_by: str = Query("name"),
+    order: str = Query("asc"),
+    db: AsyncSession = Depends(get_db),
 ):
-    movies = await get_movies(
+    return await get_movies(
         db,
         skip=skip,
         limit=limit,
         search=search,
         year=year,
         sort_by=sort_by,
-        order=order
+        order=order,
     )
-    return movies
 
 
-# ---------------------------
-# GET MOVIE BY ID
-# ---------------------------
-@router.get("/{movie_id}", response_model=Movie)
+@router.get(
+    "/{movie_id}",
+    response_model=Movie,
+    summary="Get movie by ID",
+    description="Returns a single movie by its ID.",
+)
 async def read_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
     movie = await get_movie_by_id(db, movie_id)
     if not movie:
@@ -72,54 +85,42 @@ async def read_movie(movie_id: int, db: AsyncSession = Depends(get_db)):
     return movie
 
 
-# ---------------------------
-# UPDATE MOVIE
-# ---------------------------
-@router.put("/{movie_id}", response_model=Movie)
+@router.put(
+    "/{movie_id}",
+    response_model=Movie,
+    summary="Update movie",
+    description="ADMIN and MODERATOR only. Updates movie data.",
+)
 async def update(
     movie_id: int,
     movie_update: MovieCreate,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     if current_user.group is None or current_user.group.name not in ["MODERATOR", "ADMIN"]:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(403, "Not authorized")
 
-    updated_movie = await update_movie(db, movie_id, movie_update)
-    if not updated_movie:
+    updated = await update_movie(db, movie_id, movie_update)
+    if not updated:
         raise HTTPException(404, "Movie not found")
+    return updated
 
-    return updated_movie
 
-
-# ---------------------------
-# DELETE MOVIE
-# ---------------------------
-@router.delete("/{movie_id}")
+@router.delete(
+    "/{movie_id}",
+    summary="Delete movie",
+    description="ADMIN and MODERATOR only. Deletes a movie.",
+)
 async def delete(
     movie_id: int,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
 ):
     if current_user.group is None or current_user.group.name not in ["MODERATOR", "ADMIN"]:
-        raise HTTPException(status_code=403, detail="Not authorized")
+        raise HTTPException(403, "Not authorized")
 
-    try:
-        success = await delete_movie(db, movie_id)
-        if not success:
-            raise HTTPException(404, "Movie not found")
-        return {"message": "Movie deleted"}
-    except ValueError as e:
-        raise HTTPException(400, str(e))
+    success = await delete_movie(db, movie_id)
+    if not success:
+        raise HTTPException(404, "Movie not found")
 
-
-# ---------------------------
-# GENRES WITH MOVIE COUNT
-# ---------------------------
-@router.get("/genres", response_model=List[dict])
-async def get_genres(db: AsyncSession = Depends(get_db)):
-    data = await get_genres_with_count(db)
-    return [
-        {"id": genre.id, "name": genre.name, "movie_count": count}
-        for genre, count in data
-    ]
+    return {"message": "Movie deleted"}
