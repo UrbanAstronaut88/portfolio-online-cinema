@@ -2,7 +2,7 @@ import re
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from app.models.accounts import User, UserGroup, ActivationToken, PasswordResetToken, RefreshToken
+from app.models.accounts import User, UserGroup, ActivationToken, PasswordResetToken, RefreshToken, UserGroupEnum
 from app.schemas.accounts import UserCreate
 from passlib.context import CryptContext
 from datetime import timedelta, datetime
@@ -45,11 +45,24 @@ async def get_user_by_id(db: AsyncSession, user_id: int) -> User:
 async def create_user(db: AsyncSession, user: UserCreate):
     if not check_password_complexity(user.password):
         raise ValueError("Password does not meet complexity requirements")
+
     existing_user = await get_user_by_email(db, user.email)
     if existing_user:
         raise ValueError("Email already registered")
+
+    result = await db.execute(
+        select(UserGroup).where(UserGroup.name == UserGroupEnum.USER)
+    )
+    user_group = result.scalar_one()
+
     hashed_password = get_password_hash(user.password)
-    db_user = User(email=user.email, hashed_password=hashed_password, group_id=1)
+
+    db_user = User(
+        email=user.email,
+        hashed_password=hashed_password,
+        group_id=user_group.id,
+    )
+
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
@@ -60,6 +73,7 @@ async def create_user(db: AsyncSession, user: UserCreate):
         .where(User.id == db_user.id)
     )
     user_with_group = result.scalars().first()
+
     return user_with_group
 
 
