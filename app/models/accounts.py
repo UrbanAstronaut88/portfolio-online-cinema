@@ -1,4 +1,5 @@
 from enum import Enum
+from datetime import datetime
 from sqlalchemy import (Column,
                         Integer,
                         String,
@@ -9,7 +10,7 @@ from sqlalchemy import (Column,
                         Enum as SQLEnum,
                         )
 from sqlalchemy.orm import relationship
-from datetime import datetime
+
 from app.db.base import Base
 
 
